@@ -28,22 +28,15 @@ import torch.nn.functional as F
 
 
 class CAB(nn.Module):
-    """Cross-Attention Block. Fuses a `query` branch with a `key/value` branch.
-
-    Eqs. (21)-(23):
-        Attention = softmax(Q K^T / sqrt(d))
-        F_M = Linear(V (1 - Attention)) + Q
-        F_M = MLP(Norm(F_M)) + F_M
-    """
 
     def __init__(self, dim: int = 64, reduction_ratio: int = 8, mlp_ratio: int = 4):
         super().__init__()
         self.dim = dim
         self.reduction_ratio = reduction_ratio
 
-        self.q_proj = nn.Conv2d(dim, dim, kernel_size=1)
-        self.k_proj = nn.Conv2d(dim, dim, kernel_size=1)
-        self.v_proj = nn.Conv2d(dim, dim, kernel_size=1)
+        self.q_proj   = nn.Conv2d(dim, dim, kernel_size=1)
+        self.k_proj   = nn.Conv2d(dim, dim, kernel_size=1)
+        self.v_proj   = nn.Conv2d(dim, dim, kernel_size=1)
         self.out_proj = nn.Linear(dim, dim)
 
         self.norm = nn.LayerNorm(dim)

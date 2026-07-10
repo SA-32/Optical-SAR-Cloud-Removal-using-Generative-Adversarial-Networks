@@ -27,7 +27,6 @@ import torch.nn.functional as F
 
 
 class AdversarialLoss(nn.Module):
-    """Non-saturating BCE realization of the conditional GAN loss (Eq. 33)."""
 
     def __init__(self):
         super().__init__()
@@ -46,7 +45,6 @@ class AdversarialLoss(nn.Module):
 
 
 class L1Loss(nn.Module):
-    """Eq. (34): L1(G) = (1 / (H*W*C1)) * ||n - G(m)||_1"""
 
     def forward(self, generated: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         n_pixels = generated.shape[1] * generated.shape[2] * generated.shape[3]
@@ -54,11 +52,6 @@ class L1Loss(nn.Module):
 
 
 class SpectralKLLoss(nn.Module):
-    """Eq. (35): L_KL = KL(p(G(m)) || q(n))
-
-    p and q are approximated as per-channel spatial softmax distributions
-    over the generated and target images respectively.
-    """
 
     def forward(self, generated: torch.Tensor, target: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
         B, C, H, W = generated.shape
@@ -78,7 +71,6 @@ class SpectralKLLoss(nn.Module):
 
 
 class DADIGANLoss(nn.Module):
-    """Combined objective, Eq. (32)."""
 
     def __init__(self, lambda1: float = 100.0, lambda2: float = 100.0):
         super().__init__()

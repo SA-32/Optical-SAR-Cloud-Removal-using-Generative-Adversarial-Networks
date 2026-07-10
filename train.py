@@ -68,32 +68,29 @@ class CloudRemovalDataset(Dataset):
 def train(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    G = Generator(
-        c1=args.c1, c2=args.c2, feat_ch=args.feat_ch,
-        num_stages=args.num_stages, num_heads=args.num_heads,
-        attn_reduction_ratio=args.attn_reduction_ratio,
-    ).to(device)
-    D = Discriminator(c1=args.c1, c2=args.c2).to(device)
+    G_model = Generator(c1=args.c1, c2=args.c2, feat_ch=args.feat_ch, num_stages=args.num_stages, num_heads=args.num_heads, attn_reduction_ratio=args.attn_reduction_ratio).to(device)
+    D_model = Discriminator(c1=args.c1).to(device)
 
     loss_fn = DADIGANLoss(lambda1=args.lambda1, lambda2=args.lambda2)
 
-    opt_g = torch.optim.Adam(G.parameters(), lr=args.lr, betas=(0.5, 0.999))
-    opt_d = torch.optim.Adam(D.parameters(), lr=args.lr, betas=(0.5, 0.999))
+    opt_g = torch.optim.Adam(G_model.parameters(), lr=args.lr, betas=(0.5, 0.999))
+    opt_d = torch.optim.Adam(D_model.parameters(), lr=args.lr, betas=(0.5, 0.999))
 
-    train_set = CloudRemovalDataset(args.data_root, split="train", patch_size=args.patch_size,
-                                     c1=args.c1, c2=args.c2)
-    train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True,
-                               num_workers=args.num_workers, drop_last=True)
+    train_set = CloudRemovalDataset(args.data_root, split="train", patch_size=args.patch_size, c1=args.c1, c2=args.c2)
+    
+    train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, drop_last=True)
 
     for epoch in range(args.epochs):
         for step, (cloudy, sar, cloudfree) in enumerate(train_loader):
-            cloudy, sar, cloudfree = cloudy.to(device), sar.to(device), cloudfree.to(device)
+            cloudy = cloudy.to(device)
+            sar = sar.to(device)
+            cloudfree = cloudfree.to(device)
 
             # ---- Train Discriminator ----
             with torch.no_grad():
-                fake = G(cloudy, sar)
-            real_logits = D(cloudy, sar, cloudfree)
-            fake_logits = D(cloudy, sar, fake)
+                fake = G_model(cloudy, sar)
+            real_logits = D_model(cloudy, cloudfree)
+            fake_logits = D_model(cloudy, fake)
             d_loss = loss_fn.discriminator_loss(real_logits, fake_logits)
 
             opt_d.zero_grad()
@@ -101,8 +98,8 @@ def train(args):
             opt_d.step()
 
             # ---- Train Generator ----
-            fake = G(cloudy, sar)
-            fake_logits = D(cloudy, sar, fake)
+            fake = G_model(cloudy, sar)
+            fake_logits = D_model(cloudy, fake)
             g_loss, g_terms = loss_fn.generator_loss(fake_logits, fake, cloudfree)
 
             opt_g.zero_grad()
@@ -116,8 +113,8 @@ def train(args):
 
         if (epoch + 1) % args.save_every == 0:
             os.makedirs(args.ckpt_dir, exist_ok=True)
-            torch.save(G.state_dict(), os.path.join(args.ckpt_dir, f"G_epoch{epoch+1}.pth"))
-            torch.save(D.state_dict(), os.path.join(args.ckpt_dir, f"D_epoch{epoch+1}.pth"))
+            torch.save(G_model.state_dict(), os.path.join(args.ckpt_dir, f"G_epoch{epoch+1}.pth"))
+            torch.save(D_model.state_dict(), os.path.join(args.ckpt_dir, f"D_epoch{epoch+1}.pth"))
 
 
 def parse_args():
