@@ -1,38 +1,8 @@
-"""
-Deep Disentangled Iterative Network (DDIN) components for DADIGAN.
-
-Implements the unfolded Proximal Gradient Descent Algorithm (PGDA) steps
-(Eqs. 8-20 in the paper) as three neural sub-networks:
-    - PFEB : Private Feature Extraction Block (optical branch)  -> Fig. 4(a)
-    - VFEB : Private Feature Extraction Block (SAR branch)      -> Fig. 4(b)
-    - SFEB : Shared  Feature Extraction Block                   -> Fig. 4(c)
-    - ProxNet : the learned proximal operator (implicit prior)  -> Fig. 4(d)
-
-Implementation notes (where the paper is descriptive rather than fully
-specified, we make an explicit, documented choice):
-
-* ProxNet is described as "we use Res-Net to implicitly learn the prior
-  information prox_{eta*lambda}". We implement it as a stack of 4
-  (Conv3x3 -> ReLU) pairs (matching Fig. 4d) wrapped in a single global
-  residual connection, i.e. a small residual CNN.
-* eta_p, eta_v, eta_s (the PGDA step sizes / reciprocal Lipschitz
-  constants) are implemented as learnable scalars, initialised small.
-* For SFEB, the paper states the "L_s" filters produce 128 channels
-  while all other filters produce 64. Since concatenating the raw
-  image-space residuals I~_o (C1 ch) and I~_s (C2 ch) does not naturally
-  yield 128 channels, we interpret this as: each modality's residual is
-  first encoded into a 64-channel latent, and the two are concatenated
-  to form the 128-channel "I~" representation that L_s(S) is regressed
-  against. This is a reasonable, documented reading of an underspecified
-  step in the paper.
-"""
-
 import torch
 import torch.nn as nn
 
 
 class ProxNet(nn.Module):
-    """Learned proximal operator / implicit prior network. Fig. 4(d)."""
 
     def __init__(self, channels: int = 64, n_layers: int = 4):
         super().__init__()
@@ -47,12 +17,6 @@ class ProxNet(nn.Module):
 
 
 class PFEB(nn.Module):
-    """Private Feature Extraction Block for the optical branch (updates P).
-
-    Implements Eqs. (8)-(11):
-        grad = X_p^T (X_s * S_{t-1} + X_p * P_{t-1} - I_o)
-        P_t  = prox_{eta_p lambda_p}(P_{t-1} - eta_p * grad)
-    """
 
     def __init__(self, feat_ch: int = 64, img_ch: int = 13):
         super().__init__()
@@ -72,10 +36,6 @@ class PFEB(nn.Module):
 
 
 class VFEB(nn.Module):
-    """Private Feature Extraction Block for the SAR branch (updates V).
-
-    Implements Eqs. (12)-(15), symmetric to PFEB but conditioned on I_s.
-    """
 
     def __init__(self, feat_ch: int = 64, img_ch: int = 2):
         super().__init__()
@@ -95,18 +55,9 @@ class VFEB(nn.Module):
 
 
 class SFEB(nn.Module):
-    """Shared Feature Extraction Block (updates S).
-
-    Implements Eqs. (16)-(20):
-        I~_o = I_o - X_p * P_t ,   I~_s = I_s - Y_v * V_t
-        I~   = concat(encode(I~_o), encode(I~_s))     (128-channel latent)
-        grad = L_s^T (L_s * S_{t-1} - I~)
-        S_t  = prox_{eta_s lambda_s}(S_{t-1} - eta_s * grad)
-    """
-
+    
     def __init__(self, feat_ch: int = 64, c1: int = 13, c2: int = 2, latent_ch: int = 64):
         super().__init__()
-        # Project each modality's residual into the shared latent space.
         self.conv_xp = nn.Conv2d(feat_ch, c1, kernel_size=3, padding=1)
         self.conv_yv = nn.Conv2d(feat_ch, c2, kernel_size=3, padding=1)
         self.enc_o = nn.Conv2d(c1, latent_ch, kernel_size=3, padding=1)
@@ -131,12 +82,6 @@ class SFEB(nn.Module):
 
 
 class DDIN(nn.Module):
-    """Deep Disentangled Iterative Network.
-
-    Unfolds T stages of (PFEB, VFEB, SFEB) to progressively extract the
-    private feature P (optical), private feature V (SAR), and the shared
-    feature S. See Fig. 3 "Stage 1 ... Stage T".
-    """
 
     def __init__(self, feat_ch: int = 64, c1: int = 13, c2: int = 2, num_stages: int = 3):
         super().__init__()
