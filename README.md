@@ -30,8 +30,8 @@ import torch
 from dadigan import Generator, Discriminator, DADIGANLoss
 
 # SEN12MS-CR setting: 13-band optical, 2-channel (VV, VH) SAR, 256x256 patches
-G = Generator(c1=13, c2=2, feat_ch=64, num_stages=3, num_heads=8, attn_reduction_ratio=16)
-D = Discriminator(c1=13, c2=2)
+G_model = Generator(c1=13, c2=2, feat_ch=64, num_stages=3, num_heads=8, attn_reduction_ratio=16)
+D_model = Discriminator(c1=13)
 loss_fn = DADIGANLoss(lambda1=100.0, lambda2=100.0)
 
 cloudy = torch.rand(2, 13, 256, 256)   # I_o
@@ -93,7 +93,7 @@ against your own reading of the paper or the authors' released code:
    the two stacked inputs "Reference image" and "Generated image," but
    Eq. 33's `D(m, n)` / `D(m, G(m))` makes clear the cloudy image `m` is
    the conditioning signal. This is implemented as a conditional
-   discriminator: `D(I_o, I_s, candidate)`, where `candidate` is either
+   discriminator: `D(I_o, candidate)`, where `candidate` is either
    the real cloud-free image or the generator's output.
 
 5. **`eta_p`, `eta_v`, `eta_s`** (PGDA step sizes, "reciprocal of the
